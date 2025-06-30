@@ -18,6 +18,8 @@ package org.springframework.samples.petclinic.owner;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.Iterator;
+import java.util.Set;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
@@ -50,9 +52,12 @@ class PetController {
 
 	private final PetTypeRepository types;
 
-	public PetController(OwnerRepository owners, PetTypeRepository types) {
+	private final PetService petService;
+
+	public PetController(OwnerRepository owners, PetTypeRepository types, PetService petService) {
 		this.owners = owners;
 		this.types = types;
+		this.petService = petService;
 	}
 
 	@ModelAttribute("types")
@@ -116,61 +121,84 @@ class PetController {
 		}
 
 		owner.addPet(pet);
+		// Filter out attributes with empty names and set pet reference
+		Iterator<PetAttribute> it = pet.getAttributes().iterator();
+		while (it.hasNext()) {
+			PetAttribute attr = it.next();
+			if (attr.getName() == null || attr.getName().trim().isEmpty()) {
+				it.remove();
+			}
+			else {
+				attr.setPet(pet);
+			}
+		}
 		this.owners.save(owner);
 		redirectAttributes.addFlashAttribute("message", "New Pet has been Added");
 		return "redirect:/owners/{ownerId}";
 	}
 
 	@GetMapping("/pets/{petId}/edit")
-	public String initUpdateForm() {
+	public String initUpdateForm(@PathVariable("petId") int petId, ModelMap model, @ModelAttribute("pet") Pet pet) {
+		// Attributes are loaded eagerly with pet, so just add to model for form
+		model.put("attributes", pet.getAttributes());
 		return VIEWS_PETS_CREATE_OR_UPDATE_FORM;
 	}
 
 	@PostMapping("/pets/{petId}/edit")
 	public String processUpdateForm(Owner owner, @Valid Pet pet, BindingResult result,
-			RedirectAttributes redirectAttributes) {
-
+			RedirectAttributes redirectAttributes, ModelMap model) {
 		String petName = pet.getName();
-
-		// checking if the pet name already exists for the owner
 		if (StringUtils.hasText(petName)) {
 			Pet existingPet = owner.getPet(petName, false);
 			if (existingPet != null && !existingPet.getId().equals(pet.getId())) {
 				result.rejectValue("name", "duplicate", "already exists");
 			}
 		}
-
 		LocalDate currentDate = LocalDate.now();
 		if (pet.getBirthDate() != null && pet.getBirthDate().isAfter(currentDate)) {
 			result.rejectValue("birthDate", "typeMismatch.birthDate");
 		}
-
 		if (result.hasErrors()) {
+			model.put("attributes", pet.getAttributes());
 			return VIEWS_PETS_CREATE_OR_UPDATE_FORM;
 		}
-
-		updatePetDetails(owner, pet);
-		redirectAttributes.addFlashAttribute("message", "Pet details has been edited");
-		return "redirect:/owners/{ownerId}";
-	}
-
-	/**
-	 * Updates the pet details if it exists or adds a new pet to the owner.
-	 * @param owner The owner of the pet
-	 * @param pet The pet with updated details
-	 */
-	private void updatePetDetails(Owner owner, Pet pet) {
+		// Handle dynamic attributes
 		Pet existingPet = owner.getPet(pet.getId());
 		if (existingPet != null) {
-			// Update existing pet's properties
 			existingPet.setName(pet.getName());
 			existingPet.setBirthDate(pet.getBirthDate());
 			existingPet.setType(pet.getType());
+			// Update attributes
+			Set<PetAttribute> updatedAttributes = pet.getAttributes();
+			// Remove attributes not present in updated list
+			Iterator<PetAttribute> it = existingPet.getAttributes().iterator();
+			while (it.hasNext()) {
+				PetAttribute attr = it.next();
+				if (updatedAttributes.stream().noneMatch(a -> a.getId() != null && a.getId().equals(attr.getId()))) {
+					it.remove();
+				}
+			}
+			// Add or update attributes
+			for (PetAttribute updatedAttr : updatedAttributes) {
+				if (updatedAttr.getId() == null) {
+					existingPet.addAttribute(updatedAttr);
+				}
+				else {
+					for (PetAttribute attr : existingPet.getAttributes()) {
+						if (attr.getId() != null && attr.getId().equals(updatedAttr.getId())) {
+							attr.setName(updatedAttr.getName());
+							attr.setValue(updatedAttr.getValue());
+						}
+					}
+				}
+			}
 		}
 		else {
 			owner.addPet(pet);
 		}
 		this.owners.save(owner);
+		redirectAttributes.addFlashAttribute("message", "Pet details has been edited");
+		return "redirect:/owners/{ownerId}";
 	}
 
 }

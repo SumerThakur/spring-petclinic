@@ -17,6 +17,7 @@ package org.springframework.samples.petclinic.owner;
 
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -58,6 +59,9 @@ public class Pet extends NamedEntity {
 	@OrderBy("date ASC")
 	private final Set<Visit> visits = new LinkedHashSet<>();
 
+	@OneToMany(mappedBy = "pet", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+	private Set<PetAttribute> attributes = new HashSet<>();
+
 	public void setBirthDate(LocalDate birthDate) {
 		this.birthDate = birthDate;
 	}
@@ -80,6 +84,24 @@ public class Pet extends NamedEntity {
 
 	public void addVisit(Visit visit) {
 		getVisits().add(visit);
+	}
+
+	public Set<PetAttribute> getAttributes() {
+		return attributes;
+	}
+
+	public void setAttributes(Set<PetAttribute> attributes) {
+		this.attributes = attributes;
+	}
+
+	public void addAttribute(PetAttribute attribute) {
+		attributes.add(attribute);
+		attribute.setPet(this);
+	}
+
+	public void removeAttribute(PetAttribute attribute) {
+		attributes.remove(attribute);
+		attribute.setPet(null);
 	}
 
 }

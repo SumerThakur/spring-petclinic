@@ -21,6 +21,33 @@
       <input th:replace="~{fragments/inputField :: input ('Birth Date', 'birthDate', 'date')}" />
       <input th:replace="~{fragments/selectField :: select ('Type', 'type', ${types})}" />
     </div>
+    <!-- Dynamic Pet Attributes Section -->
+    <div class="form-group" id="pet-attribute">
+      <label class="col-sm-2 control-label">Attributes</label>
+      <div class="col-sm-10">
+        <table class="table" id="attributes-table">
+          <thead>
+            <tr><th>Name</th><th>Value</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            <tr th:each="attr, iterStat : *{attributes}">
+              <td>
+                <input type="hidden" th:field="*{attributes[__${iterStat.index}__].id}" />
+                <input type="text" th:field="*{attributes[__${iterStat.index}__].name}" class="form-control" placeholder="Attribute Name" required />
+              </td>
+              <td>
+                <input type="text" th:field="*{attributes[__${iterStat.index}__].value}" class="form-control" placeholder="Attribute Value" />
+              </td>
+              <td>
+                <button type="button" class="btn btn-danger btn-sm" onclick="removeAttributeRow(this)">Remove</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <button type="button" class="btn btn-secondary" onclick="addAttributeRow()">Add Attribute</button>
+      </div>
+    </div>
+    <!-- End Dynamic Pet Attributes Section -->
     <div class="form-group">
       <div class="col-sm-offset-2 col-sm-10">
         <button th:with="text=${pet['new']} ? 'Add Pet' : 'Update Pet'" class="btn btn-primary" type="submit"
@@ -28,6 +55,27 @@
       </div>
     </div>
   </form>
+  <script>
+    function addAttributeRow() {
+      const table = document.getElementById('attributes-table').getElementsByTagName('tbody')[0];
+      const rowCount = table.rows.length;
+      const newRow = table.insertRow();
+      // Name
+      let cell1 = newRow.insertCell(0);
+      cell1.innerHTML = `<input type='hidden' name='attributes[${rowCount}].id' />` +
+        `<input type='text' name='attributes[${rowCount}].name' class='form-control' placeholder='Attribute Name' required />`;
+      // Value
+      let cell2 = newRow.insertCell(1);
+      cell2.innerHTML = `<input type='text' name='attributes[${rowCount}].value' class='form-control' placeholder='Attribute Value' />`;
+      // Remove button
+      let cell3 = newRow.insertCell(2);
+      cell3.innerHTML = `<button type='button' class='btn btn-danger btn-sm' onclick='removeAttributeRow(this)'>Remove</button>`;
+    }
+    function removeAttributeRow(btn) {
+      const row = btn.closest('tr');
+      row.parentNode.removeChild(row);
+    }
+  </script>
 
 </body>
 
