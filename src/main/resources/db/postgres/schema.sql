@@ -50,3 +50,11 @@ CREATE TABLE IF NOT EXISTS visits (
   description TEXT
 );
 CREATE INDEX ON visits (pet_id);
+
+CREATE TABLE attributes (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255),
+    attr_value VARCHAR(255),
+    pet_id INTEGER,
+    CONSTRAINT fk_pet FOREIGN KEY (pet_id) REFERENCES pets(id)
+);

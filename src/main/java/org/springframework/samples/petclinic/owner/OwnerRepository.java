@@ -62,4 +62,7 @@ public interface OwnerRepository extends JpaRepository<Owner, Integer> {
 	 */
 	Optional<Owner> findById(@Nonnull Integer id);
 
+	@Query("SELECT o FROM Owner o LEFT JOIN FETCH o.pets p LEFT JOIN FETCH p.attributes WHERE o.id = :id")
+	Optional<Owner> findByIdWithPetsAndAttributes(@Nonnull Integer id);
+
 }

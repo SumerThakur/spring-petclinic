@@ -51,3 +51,9 @@ INSERT IGNORE INTO visits VALUES (1, 7, '2010-03-04', 'rabies shot');
 INSERT IGNORE INTO visits VALUES (2, 8, '2011-03-04', 'rabies shot');
 INSERT IGNORE INTO visits VALUES (3, 8, '2009-06-04', 'neutered');
 INSERT IGNORE INTO visits VALUES (4, 7, '2008-09-04', 'spayed');
+
+-- Seed data for attributes
+INSERT INTO attributes (name, attr_value, pet_id) VALUES ('Length', '5', 1);
+INSERT INTO attributes (name, attr_value, pet_id) VALUES ('Width', '3', 1);
+INSERT INTO attributes (name, attr_value, pet_id) VALUES ('Color', 'Brown', 2);
+INSERT INTO attributes (name, attr_value, pet_id) VALUES ('Weight', '10', 3);

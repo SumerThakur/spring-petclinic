@@ -18,6 +18,10 @@ package org.springframework.samples.petclinic.owner;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.List;
+import java.util.HashMap;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
@@ -62,24 +66,23 @@ class PetController {
 
 	@ModelAttribute("owner")
 	public Owner findOwner(@PathVariable("ownerId") int ownerId) {
-		Optional<Owner> optionalOwner = this.owners.findById(ownerId);
+		Optional<Owner> optionalOwner = this.owners.findByIdWithPetsAndAttributes(ownerId);
 		Owner owner = optionalOwner.orElseThrow(() -> new IllegalArgumentException(
 				"Owner not found with id: " + ownerId + ". Please ensure the ID is correct "));
 		return owner;
 	}
 
 	@ModelAttribute("pet")
-	public Pet findPet(@PathVariable("ownerId") int ownerId,
+	public Pet findPet(@ModelAttribute("owner") Owner owner,
 			@PathVariable(name = "petId", required = false) Integer petId) {
-
 		if (petId == null) {
 			return new Pet();
 		}
-
-		Optional<Owner> optionalOwner = this.owners.findById(ownerId);
-		Owner owner = optionalOwner.orElseThrow(() -> new IllegalArgumentException(
-				"Owner not found with id: " + ownerId + ". Please ensure the ID is correct "));
-		return owner.getPet(petId);
+		Pet pet = owner.getPet(petId);
+		if (pet != null && pet.getAttributes() != null) {
+			pet.getAttributes().size(); // Force initialization
+		}
+		return pet;
 	}
 
 	@InitBinder("owner")
@@ -128,20 +131,39 @@ class PetController {
 			return VIEWS_PETS_CREATE_OR_UPDATE_FORM;
 		}
 
+		// Set pet reference in each attribute and filter out empty attributes
+		if (pet.getAttributes() != null) {
+			pet.getAttributes()
+				.removeIf(attr -> !StringUtils.hasText(attr.getName()) && !StringUtils.hasText(attr.getAttrValue()));
+			pet.getAttributes().forEach(attr -> attr.setPet(pet));
+		}
+
 		owner.addPet(pet);
-		this.owners.save(owner);
+		this.owners.save(owner); // Cascade will save attributes as well
 		redirectAttributes.addFlashAttribute("message", "New Pet has been Added");
 		return "redirect:/owners/{ownerId}";
 	}
 
 	@GetMapping("/pets/{petId}/edit")
-	public String initUpdateForm() {
+	public String initUpdateForm(Owner owner, @PathVariable("petId") int petId, ModelMap model) {
+		Pet pet = owner.getPet(petId);
+		if (pet == null) {
+			throw new IllegalArgumentException("Pet not found with id: " + petId);
+		}
+		// Ensure attributes are loaded and initialized for the form
+		if (pet.getAttributes() == null) {
+			pet.setAttributes(new ArrayList<>());
+		}
+		else {
+			pet.getAttributes().size(); // Force initialization if LAZY
+		}
+		model.put("pet", pet);
 		return VIEWS_PETS_CREATE_OR_UPDATE_FORM;
 	}
 
 	@PostMapping("/pets/{petId}/edit")
 	public String processUpdateForm(Owner owner, @Valid Pet pet, BindingResult result,
-			RedirectAttributes redirectAttributes) {
+			RedirectAttributes redirectAttributes, @PathVariable("petId") int petId) {
 
 		// Log attributes if present
 		if (pet.getClass().getDeclaredFields() != null) {
@@ -175,28 +197,56 @@ class PetController {
 			return VIEWS_PETS_CREATE_OR_UPDATE_FORM;
 		}
 
-		updatePetDetails(owner, pet);
-		redirectAttributes.addFlashAttribute("message", "Pet details has been edited");
-		return "redirect:/owners/{ownerId}";
-	}
-
-	/**
-	 * Updates the pet details if it exists or adds a new pet to the owner.
-	 * @param owner The owner of the pet
-	 * @param pet The pet with updated details
-	 */
-	private void updatePetDetails(Owner owner, Pet pet) {
-		Pet existingPet = owner.getPet(pet.getId());
+		// Improved attribute update logic
+		Pet existingPet = owner.getPet(petId);
 		if (existingPet != null) {
-			// Update existing pet's properties
 			existingPet.setName(pet.getName());
 			existingPet.setBirthDate(pet.getBirthDate());
 			existingPet.setType(pet.getType());
+
+			// Log incoming attributes
+			System.out.println("Incoming attributes from form: " + pet.getAttributes());
+			System.out.println("Existing attributes before update: " + existingPet.getAttributes());
+
+			// Map existing attributes by id for quick lookup
+			Map<Integer, Attribute> existingAttrMap = new HashMap<>();
+			for (Attribute attr : existingPet.getAttributes()) {
+				if (attr.getId() != null) {
+					existingAttrMap.put(attr.getId(), attr);
+				}
+			}
+
+			List<Attribute> updatedAttributes = new ArrayList<>();
+			if (pet.getAttributes() != null) {
+				for (Attribute formAttr : pet.getAttributes()) {
+					if (!StringUtils.hasText(formAttr.getName()) && !StringUtils.hasText(formAttr.getAttrValue())) {
+						continue; // skip empty
+					}
+					if (formAttr.getId() != null && existingAttrMap.containsKey(formAttr.getId())) {
+						// Update existing attribute
+						Attribute existingAttr = existingAttrMap.get(formAttr.getId());
+						existingAttr.setName(formAttr.getName());
+						existingAttr.setAttrValue(formAttr.getAttrValue());
+						updatedAttributes.add(existingAttr);
+					}
+					else {
+						// New attribute
+						formAttr.setPet(existingPet);
+						updatedAttributes.add(formAttr);
+					}
+				}
+			}
+			existingPet.getAttributes().clear();
+			existingPet.getAttributes().addAll(updatedAttributes);
+			System.out.println("Attributes to be saved: " + existingPet.getAttributes());
 		}
-		else {
-			owner.addPet(pet);
-		}
+		System.out.println(
+				"Before save, existingPet attributes: " + (existingPet != null ? existingPet.getAttributes() : null));
 		this.owners.save(owner);
+		System.out.println(
+				"After save, existingPet attributes: " + (existingPet != null ? existingPet.getAttributes() : null));
+		redirectAttributes.addFlashAttribute("message", "Pet details has been edited");
+		return "redirect:/owners/{ownerId}";
 	}
 
 }

@@ -61,7 +61,7 @@ public class Pet extends NamedEntity {
 	@OrderBy("date ASC")
 	private final Set<Visit> visits = new LinkedHashSet<>();
 
-	@Transient
+	@OneToMany(mappedBy = "pet", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
 	private List<Attribute> attributes = new ArrayList<>();
 
 	public void setBirthDate(LocalDate birthDate) {

@@ -36,7 +36,7 @@
                 <input type="text" th:field="*{attributes[__${iterStat.index}__].name}" class="form-control" placeholder="Attribute Name" required />
               </td>
               <td>
-                <input type="text" th:field="*{attributes[__${iterStat.index}__].value}" class="form-control" placeholder="Attribute Value" />
+                <input type="text" th:field="*{attributes[__${iterStat.index}__].attrValue}" class="form-control" placeholder="Attribute Value" />
               </td>
               <td>
                 <button type="button" class="btn btn-danger btn-sm" onclick="removeAttributeRow(this)">Remove</button>
@@ -66,7 +66,7 @@
         `<input type='text' name='attributes[${rowCount}].name' class='form-control' placeholder='Attribute Name' required />`;
       // Value
       let cell2 = newRow.insertCell(1);
-      cell2.innerHTML = `<input type='text' name='attributes[${rowCount}].value' class='form-control' placeholder='Attribute Value' />`;
+      cell2.innerHTML = `<input type='text' name='attributes[${rowCount}].attrValue' class='form-control' placeholder='Attribute Value' />`;
       // Remove button
       let cell3 = newRow.insertCell(2);
       cell3.innerHTML = `<button type='button' class='btn btn-danger btn-sm' onclick='removeAttributeRow(this)'>Remove</button>`;
