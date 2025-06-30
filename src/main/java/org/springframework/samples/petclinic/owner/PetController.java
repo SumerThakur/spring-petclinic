@@ -103,6 +103,19 @@ class PetController {
 	public String processCreationForm(Owner owner, @Valid Pet pet, BindingResult result,
 			RedirectAttributes redirectAttributes) {
 
+		// Log attributes if present
+		if (pet.getClass().getDeclaredFields() != null) {
+			try {
+				var field = pet.getClass().getDeclaredField("attributes");
+				field.setAccessible(true);
+				Object attributes = field.get(pet);
+				System.out.println("Pet attributes (creation): " + attributes);
+			}
+			catch (NoSuchFieldException | IllegalAccessException e) {
+				System.out.println("No attributes field found in Pet or unable to access.");
+			}
+		}
+
 		if (StringUtils.hasText(pet.getName()) && pet.isNew() && owner.getPet(pet.getName(), true) != null)
 			result.rejectValue("name", "duplicate", "already exists");
 
@@ -129,6 +142,19 @@ class PetController {
 	@PostMapping("/pets/{petId}/edit")
 	public String processUpdateForm(Owner owner, @Valid Pet pet, BindingResult result,
 			RedirectAttributes redirectAttributes) {
+
+		// Log attributes if present
+		if (pet.getClass().getDeclaredFields() != null) {
+			try {
+				var field = pet.getClass().getDeclaredField("attributes");
+				field.setAccessible(true);
+				Object attributes = field.get(pet);
+				System.out.println("Pet attributes (update): " + attributes);
+			}
+			catch (NoSuchFieldException | IllegalAccessException e) {
+				System.out.println("No attributes field found in Pet or unable to access.");
+			}
+		}
 
 		String petName = pet.getName();
 
