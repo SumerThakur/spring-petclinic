@@ -37,6 +37,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import jakarta.validation.Valid;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * @author Juergen Hoeller
@@ -74,7 +75,11 @@ class PetController {
 
 	@ModelAttribute("pet")
 	public Pet findPet(@ModelAttribute("owner") Owner owner,
-			@PathVariable(name = "petId", required = false) Integer petId) {
+			@PathVariable(name = "petId", required = false) Integer petId, HttpServletRequest request) {
+		// If this is a POST request, return a new Pet instance for binding
+		if ("POST".equalsIgnoreCase(request.getMethod())) {
+			return new Pet();
+		}
 		if (petId == null) {
 			return new Pet();
 		}
@@ -99,6 +104,11 @@ class PetController {
 	public String initCreationForm(Owner owner, ModelMap model) {
 		Pet pet = new Pet();
 		owner.addPet(pet);
+		// Sort attributes by order (nulls last) if any
+		if (pet.getAttributes() != null) {
+			pet.getAttributes()
+				.sort(java.util.Comparator.comparing(a -> a.getOrder() == null ? Integer.MAX_VALUE : a.getOrder()));
+		}
 		return VIEWS_PETS_CREATE_OR_UPDATE_FORM;
 	}
 
@@ -157,6 +167,9 @@ class PetController {
 		else {
 			pet.getAttributes().size(); // Force initialization if LAZY
 		}
+		// Sort attributes by order (nulls last)
+		pet.getAttributes()
+			.sort(java.util.Comparator.comparing(a -> a.getOrder() == null ? Integer.MAX_VALUE : a.getOrder()));
 		model.put("pet", pet);
 		return VIEWS_PETS_CREATE_OR_UPDATE_FORM;
 	}
@@ -164,6 +177,13 @@ class PetController {
 	@PostMapping("/pets/{petId}/edit")
 	public String processUpdateForm(Owner owner, @Valid Pet pet, BindingResult result,
 			RedirectAttributes redirectAttributes, @PathVariable("petId") int petId) {
+
+		// Log only the owner, pet, and petId
+		System.out.println("--- processUpdateForm call ---");
+		System.out.println("owner: " + owner);
+		System.out.println("pet: " + pet);
+		System.out.println("petId: " + petId);
+		System.out.println("------------------------------");
 
 		// Log attributes if present
 		if (pet.getClass().getDeclaredFields() != null) {
@@ -197,16 +217,12 @@ class PetController {
 			return VIEWS_PETS_CREATE_OR_UPDATE_FORM;
 		}
 
-		// Improved attribute update logic
+		// Improved attribute update logic with 'order' field
 		Pet existingPet = owner.getPet(petId);
 		if (existingPet != null) {
 			existingPet.setName(pet.getName());
 			existingPet.setBirthDate(pet.getBirthDate());
 			existingPet.setType(pet.getType());
-
-			// Log incoming attributes
-			System.out.println("Incoming attributes from form: " + pet.getAttributes());
-			System.out.println("Existing attributes before update: " + existingPet.getAttributes());
 
 			// Map existing attributes by id for quick lookup
 			Map<Integer, Attribute> existingAttrMap = new HashMap<>();
@@ -216,7 +232,9 @@ class PetController {
 				}
 			}
 
+			// Track which attributes are present in the form
 			List<Attribute> updatedAttributes = new ArrayList<>();
+			List<Integer> seenIds = new ArrayList<>();
 			if (pet.getAttributes() != null) {
 				for (Attribute formAttr : pet.getAttributes()) {
 					if (!StringUtils.hasText(formAttr.getName()) && !StringUtils.hasText(formAttr.getAttrValue())) {
@@ -227,18 +245,33 @@ class PetController {
 						Attribute existingAttr = existingAttrMap.get(formAttr.getId());
 						existingAttr.setName(formAttr.getName());
 						existingAttr.setAttrValue(formAttr.getAttrValue());
+						existingAttr.setOrder(formAttr.getOrder());
 						updatedAttributes.add(existingAttr);
+						seenIds.add(formAttr.getId());
 					}
-					else {
-						// New attribute
-						formAttr.setPet(existingPet);
-						updatedAttributes.add(formAttr);
+					else if (formAttr.getOrder() != null) {
+						// New attribute with order
+						Attribute newAttr = new Attribute();
+						newAttr.setName(formAttr.getName());
+						newAttr.setAttrValue(formAttr.getAttrValue());
+						newAttr.setOrder(formAttr.getOrder());
+						newAttr.setPet(existingPet);
+						updatedAttributes.add(newAttr);
 					}
 				}
 			}
+			// Remove any attribute not present in the form (by id)
 			existingPet.getAttributes().clear();
+			updatedAttributes.sort((a, b) -> {
+				if (a.getOrder() == null && b.getOrder() == null)
+					return 0;
+				if (a.getOrder() == null)
+					return 1;
+				if (b.getOrder() == null)
+					return -1;
+				return Integer.compare(a.getOrder(), b.getOrder());
+			});
 			existingPet.getAttributes().addAll(updatedAttributes);
-			System.out.println("Attributes to be saved: " + existingPet.getAttributes());
 		}
 		System.out.println(
 				"Before save, existingPet attributes: " + (existingPet != null ? existingPet.getAttributes() : null));

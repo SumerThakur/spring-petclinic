@@ -58,6 +58,7 @@ CREATE TABLE attributes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255),
     attr_value VARCHAR(255),
+    attr_order INT,
     pet_id INT,
     CONSTRAINT fk_pet FOREIGN KEY (pet_id) REFERENCES pets(id)
 );

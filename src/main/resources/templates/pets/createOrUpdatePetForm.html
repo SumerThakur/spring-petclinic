@@ -25,6 +25,7 @@
     <div class="form-group" id="pet-attribute">
       <label class="col-sm-2 control-label">Attributes</label>
       <div class="col-sm-10">
+        <input type="hidden" id="attributesEmpty" name="attributesEmpty" value="false" />
         <table class="table" id="attributes-table">
           <thead>
             <tr><th>Name</th><th>Value</th><th>Action</th></tr>
@@ -33,6 +34,7 @@
             <tr th:each="attr, iterStat : *{attributes}">
               <td>
                 <input type="hidden" th:field="*{attributes[__${iterStat.index}__].id}" />
+                <input type="hidden" th:field="*{attributes[__${iterStat.index}__].order}" th:value="${iterStat.index}" />
                 <input type="text" th:field="*{attributes[__${iterStat.index}__].name}" class="form-control" placeholder="Attribute Name" required />
               </td>
               <td>
@@ -63,6 +65,7 @@
       // Name
       let cell1 = newRow.insertCell(0);
       cell1.innerHTML = `<input type='hidden' name='attributes[${rowCount}].id' />` +
+        `<input type='hidden' name='attributes[${rowCount}].order' value='${rowCount}' />` +
         `<input type='text' name='attributes[${rowCount}].name' class='form-control' placeholder='Attribute Name' required />`;
       // Value
       let cell2 = newRow.insertCell(1);
@@ -70,11 +73,54 @@
       // Remove button
       let cell3 = newRow.insertCell(2);
       cell3.innerHTML = `<button type='button' class='btn btn-danger btn-sm' onclick='removeAttributeRow(this)'>Remove</button>`;
+      document.getElementById('attributesEmpty').value = 'false';
     }
     function removeAttributeRow(btn) {
       const row = btn.closest('tr');
       row.parentNode.removeChild(row);
+
+      // Re-index all attribute rows (no gaps) and update order
+      const rows = document.querySelectorAll('#attributes-table tbody tr');
+      rows.forEach((tr, idx) => {
+        // Update hidden id field
+        const idInput = tr.querySelector("input[type='hidden'][name^='attributes'][name$='.id']");
+        if (idInput) idInput.name = `attributes[${idx}].id`;
+
+        // Update order field
+        const orderInput = tr.querySelector("input[type='hidden'][name^='attributes'][name$='.order']");
+        if (orderInput) {
+          orderInput.name = `attributes[${idx}].order`;
+          orderInput.value = idx;
+        }
+
+        // Update name field
+        const nameInput = tr.querySelector("input[type='text'][name^='attributes'][name$='.name']");
+        if (nameInput) nameInput.name = `attributes[${idx}].name`;
+
+        // Update value field
+        const valueInput = tr.querySelector("input[type='text'][name^='attributes'][name$='.attrValue']");
+        if (valueInput) valueInput.name = `attributes[${idx}].attrValue`;
+      });
+      // Set hidden field if all attributes are removed
+      document.getElementById('attributesEmpty').value = rows.length === 0 ? 'true' : 'false';
     }
+
+    // Debug: Log all form data on submit
+    document.addEventListener('DOMContentLoaded', function() {
+      const form = document.querySelector('form');
+      if (form) {
+        form.addEventListener('submit', function(e) {
+          // e.preventDefault(); // Prevents the form from submitting for debugging
+          const formData = new FormData(this);
+          console.log('--- Form Data Submitted ---');
+          console.log('POST endpoint:', form.action);
+          for (let [key, value] of formData.entries()) {
+            console.log(key, value);
+          }
+          console.log('---------------------------');
+        });
+      }
+    });
   </script>
 
 </body>

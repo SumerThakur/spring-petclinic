@@ -16,6 +16,9 @@ public class Attribute {
 	@Column(name = "attr_value")
 	private String attrValue;
 
+	@Column(name = "attr_order")
+	private Integer order;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "pet_id")
 	@JsonIgnore
@@ -48,6 +51,14 @@ public class Attribute {
 		this.attrValue = attrValue;
 	}
 
+	public Integer getOrder() {
+		return order;
+	}
+
+	public void setOrder(Integer order) {
+		this.order = order;
+	}
+
 	public Pet getPet() {
 		return pet;
 	}
@@ -58,7 +69,8 @@ public class Attribute {
 
 	@Override
 	public String toString() {
-		return "Attribute{" + "id=" + id + ", name='" + name + '\'' + ", attrValue='" + attrValue + '\'' + '}';
+		return "Attribute{" + "id=" + id + ", name='" + name + '\'' + ", attrValue='" + attrValue + '\'' + ", order="
+				+ order + '}';
 	}
 
 }
